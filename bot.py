@@ -6,6 +6,7 @@ from config import TOKEN, ADMIN_IDS
 from admin import admin_panel_handler, increase_user_wallet_handler
 from database import cursor, conn
 import admin  # این خط را اضافه کردیم
+from admin import broadcast_message_prompt_handler, broadcast_message_handler
 
 
 # ایجاد جدول کاربران در صورت عدم وجود
@@ -37,21 +38,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except sqlite3.Error as e:
         print(f"Error occurred while inserting user {user_id}: {e}")
 
-    main_menu_keyboard = [[InlineKeyboardButton("تست", callback_data='test')],
-                          [InlineKeyboardButton("خرید", callback_data='buy'),
-                           InlineKeyboardButton("کیف پول", callback_data='wallet')],
-                          [InlineKeyboardButton("لیست قیمت ها", callback_data='price_list'),
-                           InlineKeyboardButton("اشتراک های من", callback_data='my_subscriptions')],
-                          [InlineKeyboardButton("همکاری با ما", callback_data='collaborate'),
-                           InlineKeyboardButton("تماس با پشتیبانی", callback_data='contact_support')],
-                          [InlineKeyboardButton("آموزش اتصال", callback_data='connect_tutorial'),
-                           InlineKeyboardButton("راهنما", callback_data='help')]]
+    main_menu_keyboard = [[InlineKeyboardButton("تست💫", callback_data='test')],
+                          [InlineKeyboardButton("خرید💵", callback_data='buy'),
+                           InlineKeyboardButton("کیف پول💰", callback_data='wallet')],
+                          [InlineKeyboardButton("لیست قیمت ها📑", callback_data='price_list'),
+                           InlineKeyboardButton("اشتراک های من🟢", callback_data='my_subscriptions')],
+                          [InlineKeyboardButton("همکاری با ما🤝🏻", callback_data='collaborate'),
+                           InlineKeyboardButton("تماس با پشتیبانی🧑🏻‍💻", callback_data='contact_support')],
+                          [InlineKeyboardButton("آموزش اتصال📚", callback_data='connect_tutorial'),
+                           InlineKeyboardButton("راهنما💡", callback_data='help')]]
     reply_markup = InlineKeyboardMarkup(main_menu_keyboard)
 
     if update.callback_query:
         query = update.callback_query
         await query.answer()
-        await query.edit_message_text(text="لطفا یک گزینه را انتخاب کنید:", reply_markup=reply_markup)
+        await query.edit_message_text(text="سلام به ربات تیک نت خوش اومدی❤️", reply_markup=reply_markup)
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text="لطفا یک گزینه را انتخاب کنید:",
@@ -97,6 +98,8 @@ app.add_handler(back_to_main_handler)
 app.add_handler(admin.admin_panel_handler)
 app.add_handler(admin.increase_user_wallet_handler)
 app.add_handler(admin.show_user_list_handler)  # این خط را اضافه کردیم
+app.add_handler(broadcast_message_prompt_handler)
+app.add_handler(broadcast_message_handler)
 
 app.run_polling()
 
