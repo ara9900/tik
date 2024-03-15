@@ -6,6 +6,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
 from config import ADMIN_IDS
 from database import cursor, conn
+from telegram.ext import MessageHandler, filters
 
 async def is_admin(user_id):
     return user_id in ADMIN_IDS
@@ -17,7 +18,8 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # کاربر ادمین است، پنل ادمین را نمایش دهید
         admin_keyboard = [[InlineKeyboardButton("افزایش موجودی کاربر", callback_data='increase_user_wallet')],
                           [InlineKeyboardButton("مدیریت کاربران", callback_data='manage_users')],
-                          [InlineKeyboardButton("لیست کاربران", callback_data='show_user_list')]]
+                          [InlineKeyboardButton("لیست کاربران", callback_data='show_user_list')],
+                          [InlineKeyboardButton("ارسال پیام همگانی", callback_data='broadcast_message')]]
         admin_reply_markup = InlineKeyboardMarkup(admin_keyboard)
         await update.message.reply_text("به پنل ادمین خوش آمدید.", reply_markup=admin_reply_markup)
     else:
@@ -109,6 +111,51 @@ async def show_user_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print("User is not admin")
         await query.edit_message_text("شما دسترسی به این عملیات را ندارید.")
 
+async def broadcast_message_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+
+    if await is_admin(user_id):
+        await query.edit_message_text("لطفا متن پیام همگانی را ارسال کنید:")
+        context.user_data['broadcast_mode'] = True
+    else:
+        await query.edit_message_text("شما دسترسی به این عملیات را ندارید.")
+
+async def broadcast_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    if await is_admin(user_id):
+        if 'broadcast_mode' in context.user_data and context.user_data['broadcast_mode']:
+            message_text = update.message.text
+
+            try:
+                cursor.execute("SELECT user_id FROM users")
+                user_ids = [user[0] for user in cursor.fetchall()]
+
+                for uid in user_ids:
+                    try:
+                        await context.bot.sendMessage(chat_id=uid, text=message_text)
+                    except telegram.error.Unauthorized:
+                        # Remove user from database if bot is blocked
+                        cursor.execute("DELETE FROM users WHERE user_id = ?", (uid,))
+                        conn.commit()
+                    except Exception as e:
+                        print(f"Error sending message to {uid}: {e}")
+
+                await update.message.reply_text(f"پیام با موفقیت برای {len(user_ids)} کاربر ارسال شد.")
+                context.user_data['broadcast_mode'] = False
+            except Exception as e:
+                print(f"Error occurred while broadcasting message: {e}")
+                await update.message.reply_text("خطایی در هنگام ارسال پیام همگانی رخ داد. لطفاً بعداً دوباره امتحان کنید.")
+                context.user_data['broadcast_mode'] = False
+    else:
+       await query.edit_message_text("شما دسترسی به این عملیات را ندارید.")
+
+
 admin_panel_handler = CommandHandler('panel', admin_panel)
 increase_user_wallet_handler = CallbackQueryHandler(increase_user_wallet, pattern='^increase_user_wallet_')
 show_user_list_handler = CallbackQueryHandler(show_user_list, pattern='show_user_list')
+broadcast_message_prompt_handler = CallbackQueryHandler(broadcast_message_prompt, pattern='broadcast_message')
+broadcast_message_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, broadcast_message_handler)
